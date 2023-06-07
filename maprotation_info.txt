@@ -1,0 +1,2 @@
+Place files in your /maintt/ folder of the game
+This is a Beta Version, a full open source relase may follow

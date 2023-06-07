@@ -1,0 +1,20 @@
+//defines the map order list
+//This specifies in which order the maps should be played
+//This also specifies how many times a map should be cycled
+//=========================================================================
+// FOLLOW THE GIVEN STRUCTURE, to add more maps
+// LEFT: [string] Mapname - RIGHT: [string] How often this map should be restarted
+//=========================================================================
+mapLists:{
+//=========================================================================
+	local.array = makearray
+"dm/mohdm1" "1"
+"dm/mohdm2" "1"
+"dm/mohdm3" "1"
+"dm/mohdm4" "1"
+"dm/mohdm5" "1"
+"dm/mohdm6" "1"
+"dm/mohdm7" "1"
+	endarray
+}end local.array
+

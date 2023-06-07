@@ -1,0 +1,531 @@
+//MAPROTATION SCRIPT for MOHAA BT - CHRISSSTRAHL 25.05.2023
+//Contains code from the HaZardModding COOP MOD for MOHAA War Chest
+//This script rotates the given ammount of times the maps in the list
+
+//see example file /maprotation/stalingrad.scr
+
+//maplist scripts go in folder: /maprotation/
+//maplist scripts can be named: list-1,list2, stalingrad,...
+//if you specify a maplist-file name with a path you can basically execute any script at any location
+
+
+//=========================================================================
+//USED CVARS and level. vars
+//=========================================================================
+// NEW:
+// - mrt_mapLast	- remembers last map											(do not modify)
+// - mrt_mapCount	- remembers how many cycles this map was active					(do not modify)
+// - mrt_listPos	- remembers the current map position in teh list				(do not modify)
+// - mrt_listLast	- remembers the name of the last list, to detect list changes	(do not modify)
+//
+// - mrt_list		- Specifies the list filename or path to use					Accepts strings
+// - mrt_random		- Set to 1 to randomize the list								Accepts 0 or 1
+//=========================================================================
+// EXISTING:
+// - sv_maplist
+// - mapname
+// - nextmap
+//=========================================================================
+// NEW LEVEL VARS:
+// - level.maprotate_nextMap
+// - level.maprotate_mapList
+// - level.maprotate_listDefault
+// - level.maprotate_started
+
+
+//THE SCRIPT SHOULD BE STARTED HERE from 
+//=========================================================================
+main:{
+//=========================================================================
+//=========================================================================
+	//wait until the level is ready
+	//level waittill prespawn
+	wait 2
+	
+	//don't run twiche
+	if(level.maprotate_started != NIL){ end }
+	level.maprotate_started = 1
+	
+	level.maprotate_listDefault = "maprotation/stalingrad.scr"
+	
+	
+	local.mapCurrent = getCvar("mapname")
+	local.mapListName = getCvar("mrt_list")
+	
+	//run script only in Multiplayer
+	if(int(getCvar("g_gametype")) <= 0){
+		//iii !NFO iii
+		println("(i) MAPROTATION: =X= SCRIPT TERMINATED - Meant for Multiplayer only =X=")
+		end
+	}
+	
+	//SET DELAY, can be used to fix issues with players getting disconnected or crashing
+	//waits until 5 secounds on this level have passed since the script was executed
+	local.timeOffset = level.time
+	while(level.time < (local.timeOffset + 5)){ wait 1 }
+	
+	//iii !NFO iii
+	println("(i) MAPROTATION: =!= STARTED on '"+local.mapCurrent+"'")
+
+	//populate variables we need
+	level.maprotate_nextMap	= ""
+	
+	//grab maplist
+	local.mapListData = NIL
+	local.mapListNameCvar = getCvar("mrt_list")
+	local.mapListName = local.mapListNameCvar
+	//fallback to the default list
+	if(local.mapListName == ""){
+		local.mapListName = level.maprotate_listDefault
+		
+		//iii !NFO iii
+		println("(i) MAPROTATION: Cvar mrt_list sets name of the list to use")
+	}
+	//a custom path is given
+	if(waitthread containsText local.mapListName "/"){ local.mapListName = (local.mapListName) }
+	else{ local.mapListName = ("maprotation/"+local.mapListName) }
+	//if the list path is missing.scr do add it
+	if(!waitthread containsText local.mapListName ".scr"){
+		//iii !NFO iii
+		//println("(i) MAPROTATION: Listname does not contain .scr adding")
+		
+		local.mapListName = (local.mapListName+".scr")
+	}
+	//execute the list script to grab the array
+	local.mapListData = waitexec (local.mapListName)
+	//execution of script failed, fall back to default
+	if(!local.mapListName || !local.mapListData){
+		local.mapListName = level.maprotate_listDefault
+		local.mapListData = waitexec (local.mapListName)
+		if(!local.mapListData){
+			error ("FATAL ERROR ::mapsLists file ["+local.mapListName+"] could not be found or is faulty!") 999
+			end			
+		}
+		else{
+			//iii !NFO iii
+			println("(i) MAPROTATION: Bad/Missing or faulty maplist in cvar 'mrt_list': "+local.mapListNameCvar)
+			println("(i) MAPROTATION: Did fallback to default list")
+		}
+	}
+	
+	//iii !NFO iii
+	println("(i) MAPROTATION: Using list: "+local.mapListName+" - Cvar mrt_list:'"+local.mapListNameCvar+"'")
+
+	//make list avialable to the scripts
+	level.maprotate_mapList	= local.mapListData
+	
+	//verify maplist
+	waitthread mapListVerify level.maprotate_mapList
+	
+	//decide what we need to do for rotation
+	thread mapRotation local.mapListName
+}end
+
+//decides what to do, load next map or set next map
+//=========================================================================
+mapRotation local.mapListName:{
+//=========================================================================
+	local.mapLast			= getCvar("mrt_mapLast")
+	local.listLast			= getCvar("mrt_listLast")
+	local.mapCurrent		= getCvar("mapname")
+	local.curPos			= getCvar("mrt_listPos")
+	local.mapCycles			= int(getCvar("mrt_mapCount"))
+	local.mapNext			= local.mapCurrent
+	
+	//update last map data
+	setCvar "mrt_mapLast" local.mapCurrent
+
+	//check if last map is empty or curPos is empty
+	if(local.mapLast == "" || local.curPos == "" || local.listLast != local.mapListName){
+		thread mapRotation_firstRun local.mapCurrent local.mapListName
+		end
+	}
+	
+	//convert into integer
+	local.curPos = int(local.curPos)
+	
+	//if map has changed, restart cycles
+	if(local.mapLast != local.mapCurrent){
+		local.mapCycles = 0
+		local.curPos++
+	}
+	
+	//make sure we don't go below
+	if(!local.curPos){
+		local.curPos = 1
+	}
+	
+	//reached end of list
+	if( local.curPos >= level.maprotate_mapList.size ){
+		//iii !NFO iii
+		println("(i) MAPROTATION: Reached end of list")
+	
+		//update list position
+		setCvar "mrt_listPos" "0"	
+	}else{
+		//iii !NFO iii
+		//println("(i) MAPROTATION: Updated list pos to: '"+local.curPos+"'")
+	
+		//update list position
+		setCvar "mrt_listPos" (""+local.curPos)	
+	}
+	
+	//allways up the cycle by 1
+	local.mapCycles++
+	
+	//update cvar that remembers how often a level was loadad in a row
+	setCvar "mrt_mapCount" local.mapCycles
+	
+	//grab cycles for the current map
+	local.mapCyclesAllowed = waitthread mapGetCyclesFromList local.curPos
+	
+	//iii !NFO iii
+	println("(i) MAPROTATION: Map at pos "+local.curPos+" of "+level.maprotate_mapList.size+" in List, "+local.mapCycles+" cycles of "+local.mapCyclesAllowed+": "+local.mapCurrent)
+	
+	//cycles exceeded
+	if(local.mapCycles > local.mapCyclesAllowed){
+		thread mapRotation_cyclesExceeded local.curPos local.mapCycles local.mapCyclesAllowed
+		end
+	}
+	
+	//cycle limit hit exactly
+	if(local.mapCycles == local.mapCyclesAllowed){
+		local.mapNext = waitthread mapGetNextFromList local.curPos	
+	}
+	
+	//set next map to load when level ends
+	waitthread setNextMap local.mapNext	
+}end
+
+
+//=========================================================================
+mapRotation_firstRun local.mapCurrent local.mapListName:{
+//=========================================================================
+	//iii !NFO iii
+	println("(i) MAPROTATION: First Run - Server Restarted or List was changed!")
+	
+	//update last list in use
+	setCvar "mrt_listLast" (local.mapListName)
+	
+	local.mapNext = local.mapCurrent
+	
+	//if current map is not the start map, force loading the start map
+	if( level.maprotate_mapList[1][1] != local.mapCurrent){
+		//iii !NFO iii
+		println("(i) MAPROTATION: Current map is not start map, changing now")
+		
+		//update list position
+		setCvar "mrt_listPos" "0"
+		
+		//force the start map now
+		local.mapNext = level.maprotate_mapList[1][1]
+		thread mapForceChange local.mapNext
+		end
+	}
+	
+	//iii !NFO iii
+	println("(i) MAPROTATION: Current map is start map, keeping")
+	
+	//update list position
+	setCvar "mrt_listPos" "1"
+	
+	//current map is start map - set next map to load after this map has finished
+	local.mapNext = waitthread mapGetNextFromList 1
+	waitthread setNextMap local.mapNext
+}end
+
+
+//=========================================================================
+mapRotation_cyclesExceeded local.curPos local.mapCycles local.mapCyclesAllowed:{
+//=========================================================================
+	//iii !NFO iii
+	println("(i) MAPROTATION: Map ["+local.mapCycles+"] exceeded Cycles ["+local.mapCyclesAllowed+"], forceing next map")
+	
+	//force the next map now
+	local.mapNext = waitthread mapGetNextFromList local.curPos
+	thread mapForceChange local.mapNext
+}end
+
+
+//=========================================================================
+mapListVerify local.array:{
+//=========================================================================
+	//make sure this list works - if not create error message
+	if(!local.array || local.array.size < 1){
+		error ("FATAL ERROR ::mapsLists is not populated or faulty!") 999
+	}else{
+		local.activeMaps = 0
+		
+		local.mapLastName = ""
+		
+		//iterate the array to check if it is A-OK
+		for(local.i = 1; local.i <= local.array.size; local.i++){
+			local.mapname  = local.array[local.i][1]
+			local.mapcycles  = local.array[local.i][2]
+			
+			//abbort if we have a empty mapname
+			if(local.mapname == ""){
+				error ("FATAL ERROR ::mapsLists mapname at pos "+local.i+" was empty!") 999
+				end
+			}
+			
+			//abbort if we have a empty value for cycles
+			if(local.mapcycles == NIL || local.mapcycles == "" || int(local.mapcycles) < 0 || int(local.mapcycles) > 999){
+				error ("FATAL ERROR [OUT OF RANGE: 0-999]::mapsLists cycles for "+local.mapname+" at pos "+local.i+" is invalid: "+local.mapcycles) 999
+				end
+			}
+			
+			//count the overall ammount of cycles
+			if(int(local.mapcycles) > 0){
+				local.activeMaps++;
+				
+				//two maps with the same name in a row
+				if(local.mapLastName == local.mapname){
+					error ("FATAL ERROR ::mapsLists Two maps with the same name in row!") 999
+					end
+				}
+				
+				local.mapLastName = local.mapname
+			}
+		}
+		//abbort if not at least two maps have cycles (are active)
+		if(local.activeMaps < 2){
+			error ("FATAL ERROR ::mapsLists NEEDS at least two active maps in it with different names!") 999
+			end
+		}
+		
+		//we need the start map to be valid
+		if(int(local.array[1][2]) < 1){
+			error ("FATAL ERROR ::mapsLists the first map in the list needs to have at least 1 cycle!") 999
+			end
+		}
+	}
+}end
+
+
+//returns the number of cycles for the map at the given location in the list
+//=========================================================================
+mapGetCyclesFromList local.mapPosInList:{
+//=========================================================================
+	//verify that there is a value in parameter 1
+	if(local.mapPosInList == NIL){
+		error ("FATAL ERROR ::mapGetCyclesFromList Parameter 1 was empty!") 999
+		end 0	
+	}
+	
+	//verify parameter 1
+	if(local.mapPosInList < 1 || local.mapPosInList > level.maprotate_mapList.size){
+		local.mapPosInList = 1
+	}
+	
+	//grab mapname and cycles
+	local.mapname = level.maprotate_mapList[local.mapPosInList][1]
+	local.mapcycles = int(level.maprotate_mapList[ local.mapPosInList ][2])
+	
+	//@@@ DEBUG @@@
+	//println ("(i) MAPROTATION: RETURNING: "+local.mapname+" at pos["+local.mapPosInList+"] cycles["+local.mapcycles+"]")
+}end local.mapcycles
+
+
+//grabs next map from the list
+//=========================================================================
+mapGetNextFromList local.mapPosInList:{
+//=========================================================================
+	local.mapname = getCvar("mapname")
+
+	//verify that there is a value in parameter 1
+	if(!local.mapPosInList){
+		error ("FATAL ERROR ::mapGetNextFromList Parameter 1 was empty!") 999
+		end local.mapname
+	}
+	
+	//load random map
+	/*
+	local.randomRotation = getCvar("mrt_random")
+	if(local.randomRotation != "" && int(local.randomRotation) > 0){
+		local.rounds = 200
+		local.randomNum = local.mapPosInList
+		
+		while(local.randomNum == local.mapPosInList && local.rounds > 0){
+			local.rounds++
+			
+			local.randomNum = ( randomint(level.maprotate_mapList.size) + 1)
+			
+			if(local.mapPosInList > level.maprotate_mapList.size){
+				local.randomNum = 1
+			}
+		}
+		
+		//iii !NFO iii
+		println("(i) MAPROTATION: Random Map selected, current pos ["+local.mapPosInList+"] selected ["+local.randomNum+"]")
+		//println("(i) MAPROTATION: Random Map selected - mrt_random is set")
+		local.mapPosInList = local.randomNum
+	}
+	*/
+	
+	
+	//@@@ DEBUG @@@
+	//println("(i) MAPROTATION: mapGetNextFromList pos: ["+local.mapPosInList+"]")
+	
+	//verify parameter 1
+	if(local.mapPosInList < 1){
+		local.mapPosInList = 1
+	}
+	else if(local.mapPosInList > level.maprotate_mapList.size){
+		local.mapPosInList = 0
+	}
+	
+	//try to get a valid map, iterate the list if the next map has less than 1 wanted cycle
+	local.mapcycles = 0
+	local.rounds = 0
+	while(local.mapcycles < 1 && local.rounds < level.maprotate_mapList.size){
+		//failsave for the loop
+		local.rounds++;
+		
+		//count 1 up
+		local.mapPosInList++;
+		
+		//restart if we are at the end of the list
+		if(local.mapPosInList > level.maprotate_mapList.size){
+			//@@@ DEBUG @@@
+			//println("(i) MAPROTATION: mapGetNextFromList at end of list")
+			
+			local.mapPosInList = 1;
+		}	
+		
+		//grab cycles for this 
+		local.mapcycles = waitthread mapGetCyclesFromList local.mapPosInList
+		
+		//@@@ DEBUG @@@
+		//println("(i) MAPROTATION: mapGetNextFromList c["+local.mapcycles+"] for pos ["+local.mapPosInList+"]")
+	}
+
+	//grab mapname from list
+	local.mapname = level.maprotate_mapList[ local.mapPosInList ][1]	
+}end local.mapname
+
+
+
+//sets the next map to load
+//=========================================================================
+setNextMap local.nxtMap:{
+//=========================================================================
+	if(!local.nxtMap){
+		//iii !NFO iii
+		println("(i) MAPROTATION: [setNextMap] =!= Given nextmap was empty! =!=")
+	
+		local.nxtMap = getCvar("mapname")
+	}
+	setcvar "sv_maplist" (local.nxtMap)
+	setcvar "nextmap" (local.nxtMap)
+	level.maprotate_nextMap = local.nxtMap
+	
+	//iii !NFO iii
+	println("(i) MAPROTATION: NEXT MAP set to: "+level.maprotate_nextMap)
+}end
+
+
+//loads the given map now
+//=========================================================================
+mapForceChange local.mapname:{
+//=========================================================================	
+	//set next map to load
+	waitthread setNextMap local.mapname
+	
+	//force level ending
+	thread mapEndLevel	
+}end
+
+
+//ends the level
+//=========================================================================
+mapEndLevel:{
+//=========================================================================	
+	local.printMsgTime = 2
+	local.loadDelayTime = 16
+	
+	while(local.loadDelayTime > 0){
+		local.Msg3 = ("( i ) Maprotation: Loading ("+level.maprotate_nextMap+") in: "+(local.loadDelayTime))
+		iprintln_noloc local.Msg3
+		println local.Msg3
+		local.loadDelayTime = ( local.loadDelayTime - local.printMsgTime) 
+		println ("lvl time: "+level.time)
+		wait 2
+	}
+	
+	//spawn and activate trigger to end match
+	local.levelEndTrigger = spawn "trigger_changelevel" "map" (level.maprotate_nextMap)
+	waitframe
+	trigger local.levelEndTrigger
+}end
+
+
+//used to help with printouts of debug messages
+//=========================================================================
+printDebugMessage local.dMsg:{
+//=========================================================================
+	if(!local.dMsg){
+		error ("FATAL ERROR ::waitthread printDebugMessage EMPTY Message given!") 999
+	}
+	//iprintln_noloc local.dMsg
+	//if($player[1]){ $player[1] iprint local.dMsg 1 }
+	println ("@@@ "+local.dMsg)
+}end
+
+
+//TAKEN FROM THE HaZardModding COOP MOD for MOHAA War Chest
+//checks if a string contains the given text
+//[202] chrissstrahl - returning now starting position of where string was found if instructed to do so
+//=========================================================================
+containsText local.source local.text local.giveStartPos:{
+//=========================================================================
+	if(local.source == NIL || local.text == NIL || local.source.size < local.text.size){ end 0 }
+
+	local.index = 0
+	local.matchStartsAt = 0 //[202]
+	for(local.i=0;local.i<local.source.size;local.i++){
+		//part of match found
+		if(local.source[local.i] == local.text[local.index]){
+			local.index++
+			if(local.matchStartsAt == 0){ //[202]
+				local.matchStartsAt = local.i
+			}
+			//complete match found
+			if(local.index == local.text.size){
+				if(local.giveStartPos){ //[202]
+					end local.matchStartsAt
+				}
+				end 1
+			}
+		}else{
+			local.index = 0
+			local.matchStartsAt = 0 //[202]
+		}
+	}
+}end 0
+
+
+//TAKEN FROM THE HaZardModding COOP MOD for MOHAA War Chest
+//[202] chrissstrahl - cleans the mapname of savepoints ($...) and returns it
+//=========================================================================
+getCleanMapname local.dirtyName:{
+//=========================================================================
+	local.fullMapName = string(local.dirtyName);
+	local.cleanName = ""
+	for(local.current = 0; local.current < local.fullMapName.size;local.current++){
+		if(local.fullMapName[local.current] == "$"){ break }
+		local.cleanName += local.fullMapName[local.current]
+	}
+}end local.cleanName
+
+
+
+
+
+
+
+
+
+
+
+
