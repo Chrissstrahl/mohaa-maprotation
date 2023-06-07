@@ -117,9 +117,13 @@ main:{
 	//verify maplist
 	waitthread mapListVerify level.maprotate_mapList
 	
+	//generate random list, if mrt_random is active
+	waitthread mapListCreateRandomList level.maprotate_mapList
+	
 	//decide what we need to do for rotation
 	thread mapRotation local.mapListName
 }end
+
 
 //decides what to do, load next map or set next map
 //=========================================================================
@@ -201,37 +205,70 @@ mapRotation local.mapListName:{
 //=========================================================================
 mapRotation_firstRun local.mapCurrent local.mapListName:{
 //=========================================================================
+	local.randomRotation	= getCvar("mrt_random")
+
 	//iii !NFO iii
 	println("(i) MAPROTATION: First Run - Server Restarted or List was changed!")
 	
 	//update last list in use
 	setCvar "mrt_listLast" (local.mapListName)
 	
-	local.mapNext = local.mapCurrent
+	local.mapNext	= local.mapCurrent
+	local.curPos	= 1
 	
-	//if current map is not the start map, force loading the start map
-	if( level.maprotate_mapList[1][1] != local.mapCurrent){
-		//iii !NFO iii
-		println("(i) MAPROTATION: Current map is not start map, changing now")
+	//if random map rotations is not active
+	if(local.randomRotation == "" || int(local.randomRotation) < 1){
+		//if current map is not the start map, force loading the start map
+		if( level.maprotate_mapList[1][1] != local.mapCurrent){
+			//iii !NFO iii
+			println("(i) MAPROTATION: Current map is not start map, changing now")
+			
+			//update list position
+			setCvar "mrt_listPos" "0"
+			
+			//force the start map now
+			local.mapNext = level.maprotate_mapList[1][1]
+			thread mapForceChange local.mapNext
+			end
+		}
+	}
+	//random map rotation is active, and we need to figure out which position this map is in
+	else{
+		local.curPos = waitthread mapGetPosInList local.mapCurrent
 		
-		//update list position
-		setCvar "mrt_listPos" "0"
-		
-		//force the start map now
-		local.mapNext = level.maprotate_mapList[1][1]
-		thread mapForceChange local.mapNext
-		end
+		//oh no - this map is not on the list
+		if(local.curPos < 1){
+			//iii !NFO iii
+			println("(i) MAPROTATION: Current map is not in the maplist, changing now")
+			
+			//update list position
+			setCvar "mrt_listPos" "0"
+			
+			//force a random next map now
+			local.mapNext = waitthread mapGetNextFromList 0
+			thread mapForceChange local.mapNext
+			end
+		}
 	}
 	
+	//okay, so where we arrive only if:
+	//- current map is the start map --> OR <-- random is active and current map is in the maplist
+	//grab then the cycles this map should be doing
+	local.mapCyclesAllowed = waitthread mapGetCyclesFromList local.curPos
+	
 	//iii !NFO iii
-	println("(i) MAPROTATION: Current map is start map, keeping")
+	println("(i) MAPROTATION: Map at pos "+local.curPos+" of "+level.maprotate_mapList.size+" in List, 1 cycles of "+local.mapCyclesAllowed+": "+local.mapCurrent)
 	
 	//update list position
 	setCvar "mrt_listPos" "1"
 	
-	//current map is start map - set next map to load after this map has finished
-	local.mapNext = waitthread mapGetNextFromList 1
-	waitthread setNextMap local.mapNext
+	//if the current level has less than 2 cycles, grab next map from list and overwrite the current map in the var
+	if(local.mapCyclesAllowed < 2){
+		//current map is start map - set next map to load after this map has finished
+		local.mapNext = waitthread mapGetNextFromList 1
+	}
+	
+	waitthread setNextMap local.mapNext	
 }end
 
 
@@ -260,32 +297,32 @@ mapListVerify local.array:{
 		
 		//iterate the array to check if it is A-OK
 		for(local.i = 1; local.i <= local.array.size; local.i++){
-			local.mapname  = local.array[local.i][1]
-			local.mapcycles  = local.array[local.i][2]
+			local.mapName  = local.array[local.i][1]
+			local.mapCycles  = local.array[local.i][2]
 			
 			//abbort if we have a empty mapname
-			if(local.mapname == ""){
+			if(local.mapName == ""){
 				error ("FATAL ERROR ::mapsLists mapname at pos "+local.i+" was empty!") 999
 				end
 			}
 			
 			//abbort if we have a empty value for cycles
-			if(local.mapcycles == NIL || local.mapcycles == "" || int(local.mapcycles) < 0 || int(local.mapcycles) > 999){
-				error ("FATAL ERROR [OUT OF RANGE: 0-999]::mapsLists cycles for "+local.mapname+" at pos "+local.i+" is invalid: "+local.mapcycles) 999
+			if(local.mapCycles == NIL || local.mapCycles == "" || int(local.mapCycles) < 0 || int(local.mapCycles) > 999){
+				error ("FATAL ERROR [OUT OF RANGE: 0-999]::mapsLists cycles for "+local.mapName+" at pos "+local.i+" is invalid: "+local.mapCycles) 999
 				end
 			}
 			
 			//count the overall ammount of cycles
-			if(int(local.mapcycles) > 0){
+			if(int(local.mapCycles) > 0){
 				local.activeMaps++;
 				
 				//two maps with the same name in a row
-				if(local.mapLastName == local.mapname){
+				if(local.mapLastName == local.mapName){
 					error ("FATAL ERROR ::mapsLists Two maps with the same name in row!") 999
 					end
 				}
 				
-				local.mapLastName = local.mapname
+				local.mapLastName = local.mapName
 			}
 		}
 		//abbort if not at least two maps have cycles (are active)
@@ -300,6 +337,32 @@ mapListVerify local.array:{
 			end
 		}
 	}
+}end
+
+
+//generates a list based on the supplied maplist BUT:
+// - each mapname will be present only once
+// - only active maps with at least 1 cycle are added
+//=========================================================================
+mapListCreateRandomList local.mapList:{
+//=========================================================================
+	local.mapCycles		= 0
+	local.mapsAdded		= 0
+	
+	println("(i) MAPROTATION: ::mapListCreateRandomList started")
+	
+	//generate the random list only for maps that have more than ZERO cycles
+	for(local.i=1;local.i<=local.mapList.size;local.i++){
+		local.mapCycles = int(local.mapList[ local.i ][2])
+		if(local.mapCycles > 0){
+			//@@@ DEBUG @@@
+			//println("(i) MAPROTATION: ::mapListCreateRandomList adding")
+			local.mapsAdded++
+			waitthread mapAddToRandomList local.mapList[ local.i ][1]
+		}
+	}
+
+	println("(i) MAPROTATION: ::mapListCreateRandomList ["+local.mapsAdded+"] Maps Added to RandomList")
 }end
 
 
@@ -319,53 +382,152 @@ mapGetCyclesFromList local.mapPosInList:{
 	}
 	
 	//grab mapname and cycles
-	local.mapname = level.maprotate_mapList[local.mapPosInList][1]
-	local.mapcycles = int(level.maprotate_mapList[ local.mapPosInList ][2])
+	local.mapName = level.maprotate_mapList[local.mapPosInList][1]
+	local.mapCycles = int(level.maprotate_mapList[ local.mapPosInList ][2])
 	
 	//@@@ DEBUG @@@
-	//println ("(i) MAPROTATION: RETURNING: "+local.mapname+" at pos["+local.mapPosInList+"] cycles["+local.mapcycles+"]")
-}end local.mapcycles
+	//println ("(i) MAPROTATION: RETURNING: "+local.mapName+" at pos["+local.mapPosInList+"] cycles["+local.mapCycles+"]")
+}end local.mapCycles
+
+
+//checks if the given map is already in the random list
+//=========================================================================
+mapIsInRandomList local.mapName:{
+//=========================================================================
+	if(!local.mapName){
+		error ("FATAL ERROR ::mapIsInRandomList Parameter 1 was empty!") 999
+		end 0
+	}
+	
+	//check the random list
+	for(local.i=1;local.i<=level.maprotate_mapList.size;local.i++){
+		if(local.mapName == $world.flags[("mrt_rnd"+local.i)]){
+			end 1
+		}
+	}
+}end 0
+
+
+//checks if the given map is in the maplist list and returns the first position the given mapname is found at
+//if local.startingPos is specified the check will start from there
+//=========================================================================
+mapGetPosInList local.mapName local.startingPos:{
+//=========================================================================
+	if(!local.mapName){
+		error ("FATAL ERROR ::mapGetPosInList Parameter 1 was empty!") 999
+		end 0
+	}
+	
+	//a start position is given
+	if(local.startingPos != NIL){
+		local.startingPos = int(local.startingPos)
+		
+		//the start position is out of bounds
+		if(local.startingPos < 1 || local.startingPos > level.maprotate_mapList.size ){
+			error ("FATAL ERROR ::mapGetPosInList Parameter 2 ["+local.startingPos+"] out of range: [1]-["+level.maprotate_mapList.size+"]!") 999
+			end 0
+		}
+	}
+	//no start pos is given, just start at !!1
+	else{
+		local.startingPos = 1
+	}
+	
+	//check the random list
+	for(local.i=local.startingPos;local.i<=level.maprotate_mapList.size;local.i++){
+		if(local.mapName == level.maprotate_mapList[ local.i ][1]){
+			end local.i
+		}
+	}
+}end 0
+
+
+//checks if the given map is already in the random list
+//=========================================================================
+mapAddToRandomList local.mapName:{
+//=========================================================================
+	if(!local.mapName){
+		error ("FATAL ERROR ::mapAddToRandomList Parameter 1 was empty!") 999
+		end
+	}
+	
+	//map already in list, don't add it, just exit here
+	if(waitthread mapIsInRandomList local.mapName){
+		//@@@ DEBUG @@@
+		//println ("(i) MAPROTATION: ::mapAddToRandomList NOT added: "+local.mapName)
+		
+		end
+	}
+	
+	//add mapname to random list
+	for(local.i=1;local.i<=level.maprotate_mapList.size;local.i++){
+		local.mapNameInList = string($world.flags[("mrt_rnd"+local.i)])
+		
+		//@@@ DEBUG @@@
+		//println ("(i) MAPROTATION: ::mapAddToRandomList local.mapNameInList: "+local.mapNameInList)
+		
+		//found empty slot, add to list, also update the size info
+		if( local.mapNameInList == "NIL" || local.mapNameInList == ""){
+			//@@@ DEBUG @@@
+			//println ("(i) MAPROTATION: ::mapAddToRandomList added: "+local.mapName)
+			
+			$world.flags[("mrt_rnd"+local.i)] = local.mapName
+			$world.flags["mrt_rnd_size"] = local.i
+			end
+		}
+	}
+	//exceeded map entries - this should never be happening
+	error ("FATAL ERROR ::mapAddToRandomList EXCEEDED MAX ENTRIES!") 999
+}end
+
+
+//grabs random map from the list - avoids grabbing the same map
+//=========================================================================
+mapGetRandomFromList:{
+//=========================================================================
+	//pick random map, and check if it is active/has at last 1 cycle
+	local.randomListSize	= $world.flags["mrt_rnd_size"]
+	local.mapCurrent		= getCvar("mapname")
+	local.mapName			= local.mapCurrent
+	
+	//try until we have a map that is not the same
+	while(local.mapName == local.mapCurrent){
+		local.randomNum = ( randomint(local.randomListSize) + 1)
+		if(local.randomNum > local.randomListSize){
+			local.randomNum = 1
+		}
+		local.mapName = $world.flags[("mrt_rnd"+local.randomNum)]
+	}
+
+	//iii !NFO iii
+	println("(i) MAPROTATION: ::mapGetRandomFromList, selected["+local.randomNum+"] randomly: "+local.mapName)
+}end local.mapName
 
 
 //grabs next map from the list
 //=========================================================================
 mapGetNextFromList local.mapPosInList:{
 //=========================================================================
-	local.mapname = getCvar("mapname")
+	local.mapName			= getCvar("mapname")
+	local.randomRotation	= getCvar("mrt_random")
+	local.mapCycles			= 0
+	local.randomListSize	= int($world.flags["mrt_rnd_size"])
 
 	//verify that there is a value in parameter 1
-	if(!local.mapPosInList){
+	if( local.mapPosInList == NIL || local.mapPosInList == "" ){
 		error ("FATAL ERROR ::mapGetNextFromList Parameter 1 was empty!") 999
-		end local.mapname
+		end local.mapName
 	}
-	
-	//load random map
-	/*
-	local.randomRotation = getCvar("mrt_random")
-	if(local.randomRotation != "" && int(local.randomRotation) > 0){
-		local.rounds = 200
-		local.randomNum = local.mapPosInList
-		
-		while(local.randomNum == local.mapPosInList && local.rounds > 0){
-			local.rounds++
-			
-			local.randomNum = ( randomint(level.maprotate_mapList.size) + 1)
-			
-			if(local.mapPosInList > level.maprotate_mapList.size){
-				local.randomNum = 1
-			}
-		}
-		
-		//iii !NFO iii
-		println("(i) MAPROTATION: Random Map selected, current pos ["+local.mapPosInList+"] selected ["+local.randomNum+"]")
-		//println("(i) MAPROTATION: Random Map selected - mrt_random is set")
-		local.mapPosInList = local.randomNum
-	}
-	*/
-	
 	
 	//@@@ DEBUG @@@
 	//println("(i) MAPROTATION: mapGetNextFromList pos: ["+local.mapPosInList+"]")
+	
+	//random map is enabled
+	//make sure we have at lest 3 maps in the list or there is no point in random
+	if(local.randomRotation != "" && int(local.randomRotation) > 0 && local.randomListSize > 2){
+		local.mapName = waitthread mapGetRandomFromList
+		end local.mapName
+	}
 	
 	//verify parameter 1
 	if(local.mapPosInList < 1){
@@ -376,9 +538,8 @@ mapGetNextFromList local.mapPosInList:{
 	}
 	
 	//try to get a valid map, iterate the list if the next map has less than 1 wanted cycle
-	local.mapcycles = 0
 	local.rounds = 0
-	while(local.mapcycles < 1 && local.rounds < level.maprotate_mapList.size){
+	while(local.mapCycles < 1 && local.rounds < level.maprotate_mapList.size){
 		//failsave for the loop
 		local.rounds++;
 		
@@ -394,16 +555,15 @@ mapGetNextFromList local.mapPosInList:{
 		}	
 		
 		//grab cycles for this 
-		local.mapcycles = waitthread mapGetCyclesFromList local.mapPosInList
+		local.mapCycles = waitthread mapGetCyclesFromList local.mapPosInList
 		
 		//@@@ DEBUG @@@
-		//println("(i) MAPROTATION: mapGetNextFromList c["+local.mapcycles+"] for pos ["+local.mapPosInList+"]")
+		//println("(i) MAPROTATION: mapGetNextFromList c["+local.mapCycles+"] for pos ["+local.mapPosInList+"]")
 	}
 
 	//grab mapname from list
-	local.mapname = level.maprotate_mapList[ local.mapPosInList ][1]	
-}end local.mapname
-
+	local.mapName = level.maprotate_mapList[ local.mapPosInList ][1]
+}end local.mapName
 
 
 //sets the next map to load
@@ -427,10 +587,10 @@ setNextMap local.nxtMap:{
 
 //loads the given map now
 //=========================================================================
-mapForceChange local.mapname:{
+mapForceChange local.mapName:{
 //=========================================================================	
 	//set next map to load
-	waitthread setNextMap local.mapname
+	waitthread setNextMap local.mapName
 	
 	//force level ending
 	thread mapEndLevel	
@@ -510,7 +670,7 @@ containsText local.source local.text local.giveStartPos:{
 //=========================================================================
 getCleanMapname local.dirtyName:{
 //=========================================================================
-	local.fullMapName = string(local.dirtyName);
+	local.fullMapName = string(local.dirtyName)
 	local.cleanName = ""
 	for(local.current = 0; local.current < local.fullMapName.size;local.current++){
 		if(local.fullMapName[local.current] == "$"){ break }
