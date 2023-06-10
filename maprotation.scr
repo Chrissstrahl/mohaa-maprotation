@@ -170,10 +170,12 @@ mapRotation local.mapListName:{
 		end
 	}
 	
+	//convert into integer
+	local.curPos = int(local.curPos)
+	
 	//if map has changed, restart cycles
 	if(local.mapLast != local.mapCurrent){
 		local.mapCycles = 0
-		local.curPos++
 	}
 	
 	//always up the cycle by 1
@@ -183,9 +185,11 @@ mapRotation local.mapListName:{
 	setCvar "mrt_mapCount" local.mapCycles
 	
 	//NOT RANDOM MAP, mrt_random is NOT active
-	if(!local.randomRotation){
-		//convert into integer
-		local.curPos = int(local.curPos)
+	if(!local.randomRotation){		
+		//if map has changed, restart cycles
+		if(local.mapLast != local.mapCurrent){
+			local.curPos++
+		}	
 		
 		//make sure we don't go below
 		if(!local.curPos){ local.curPos = 1 }
@@ -204,6 +208,9 @@ mapRotation local.mapListName:{
 	}
 	//RANDOM MAP, mrt_random is active
 	else{
+		//reset list position
+		setCvar "mrt_listPos" "0"	
+	
 		//getpos of map in randomlist
 		local.curPos = waitthread mapGetPosInList local.mapCurrent
 		
