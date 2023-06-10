@@ -266,6 +266,9 @@ mapRotation_firstRun local.mapCurrent local.mapListName:{
 		}
 	}
 	
+	//update cvar that remembers how often a level was loadad in a row
+	setCvar "mrt_mapCount" "1"
+	
 	//okay, so where we arrive only if:
 	//- current map is the start map --> OR <-- random is active and current map is in the maplist
 	//grab then the cycles this map should be doing
