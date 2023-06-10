@@ -1,13 +1,25 @@
 //MAPROTATION SCRIPT for MOHAA BT - CHRISSSTRAHL 25.05.2023
 //Contains code from the HaZardModding COOP MOD for MOHAA War Chest
-//This script rotates the given ammount of times the maps in the list
+//
+//THIS SCRIPT ROTATES EACH MAP IN THE LIST THE GIVEN AMMOUNT OF CYCLES BEFORE IT CONTINUES TO THE NEXT MAP
+//TESTERS: PROtoes
 
-//see example file /maprotation/stalingrad.scr
-
-//maplist scripts go in folder: /maprotation/
-//maplist scripts can be named: list-1,list2, stalingrad,...
+//See example file:						/maprotation/stalingrad.scr
+//maplist scripts go in folder:			/maprotation/
+//DEFAULT LIST SPECIFIED IN:			level.maprotate_listDefault
 //if you specify a maplist-file name with a path you can basically execute any script at any location
 
+//NOTICE
+//- To accsess entities you will always have your code after, this even if it gives you a warning, keep it in your script:
+//level waittill prespawn
+//- $world might be NULL between mapchanges or restart, you are required to check
+//- level.time uses realtime, so when reloading a level it might advance/skip ahead much faster than you would expect it to do
+
+//IGNORE any errors like that, in any other script, they are bound to happen do not try to fix them can break the scripts:
+//	level waittill prespawn (xyz.scr, 69)
+//	level ^
+//
+//^~^~^ Script Error: invalid waittill prespawn for 'Level'
 
 //=========================================================================
 //USED CVARS and level. vars
@@ -38,19 +50,23 @@
 main:{
 //=========================================================================
 //=========================================================================
-	//wait until the level is ready
-	//level waittill prespawn
+	//wait until the level is ready or it goes boom
+	level waittill prespawn
 	wait 2
 	
 	//don't run twiche
-	if(level.maprotate_started != NIL){ end }
+	if(level.maprotate_started != NIL){	end	}
 	level.maprotate_started = 1
 	
+	//EDIT HERE YOUR DEFAULT START LIST
 	level.maprotate_listDefault = "maprotation/stalingrad.scr"
 	
-	
+	//GRAB DATA - current map and maplist
 	local.mapCurrent = getCvar("mapname")
 	local.mapListName = getCvar("mrt_list")
+	
+	//clean mapname of any special parameters
+	local.mapCurrent = waitthread getCleanMapname local.mapCurrent
 	
 	//run script only in Multiplayer
 	if(int(getCvar("g_gametype")) <= 0){
@@ -74,25 +90,25 @@ main:{
 	local.mapListData = NIL
 	local.mapListNameCvar = getCvar("mrt_list")
 	local.mapListName = local.mapListNameCvar
-	//fallback to the default list
+	
+	//fallback to the default list if cvar 'mrt_list' is empty
 	if(local.mapListName == ""){
 		local.mapListName = level.maprotate_listDefault
 		
 		//iii !NFO iii
 		println("(i) MAPROTATION: Cvar mrt_list sets name of the list to use")
 	}
+	
 	//a custom path is given
 	if(waitthread containsText local.mapListName "/"){ local.mapListName = (local.mapListName) }
 	else{ local.mapListName = ("maprotation/"+local.mapListName) }
-	//if the list path is missing.scr do add it
-	if(!waitthread containsText local.mapListName ".scr"){
-		//iii !NFO iii
-		//println("(i) MAPROTATION: Listname does not contain .scr adding")
-		
-		local.mapListName = (local.mapListName+".scr")
-	}
+	
+	//if the list path is missing '.scr' do add it
+	if(!waitthread containsText local.mapListName ".scr"){ local.mapListName = (local.mapListName+".scr") }
+	
 	//execute the list script to grab the array
 	local.mapListData = waitexec (local.mapListName)
+	
 	//execution of script failed, fall back to default
 	if(!local.mapListName || !local.mapListData){
 		local.mapListName = level.maprotate_listDefault
@@ -109,7 +125,7 @@ main:{
 	}
 	
 	//iii !NFO iii
-	println("(i) MAPROTATION: Using list: "+local.mapListName+" - Cvar mrt_list:'"+local.mapListNameCvar+"'")
+	println("(i) MAPROTATION: Using list: "+local.mapListName+":'"+local.mapListNameCvar+"'")
 
 	//make list avialable to the scripts
 	level.maprotate_mapList	= local.mapListData
@@ -134,6 +150,10 @@ mapRotation local.mapListName:{
 	local.mapCurrent		= getCvar("mapname")
 	local.curPos			= getCvar("mrt_listPos")
 	local.mapCycles			= int(getCvar("mrt_mapCount"))
+	
+	//clean mapname of any special parameters
+	local.mapCurrent = waitthread getCleanMapname local.mapCurrent
+	
 	local.mapNext			= local.mapCurrent
 	
 	//update last map data
@@ -155,9 +175,7 @@ mapRotation local.mapListName:{
 	}
 	
 	//make sure we don't go below
-	if(!local.curPos){
-		local.curPos = 1
-	}
+	if(!local.curPos){ local.curPos = 1 }
 	
 	//reached end of list
 	if( local.curPos >= level.maprotate_mapList.size ){
@@ -167,9 +185,6 @@ mapRotation local.mapListName:{
 		//update list position
 		setCvar "mrt_listPos" "0"	
 	}else{
-		//iii !NFO iii
-		//println("(i) MAPROTATION: Updated list pos to: '"+local.curPos+"'")
-	
 		//update list position
 		setCvar "mrt_listPos" (""+local.curPos)	
 	}
@@ -349,20 +364,16 @@ mapListCreateRandomList local.mapList:{
 	local.mapCycles		= 0
 	local.mapsAdded		= 0
 	
-	println("(i) MAPROTATION: ::mapListCreateRandomList started")
-	
 	//generate the random list only for maps that have more than ZERO cycles
 	for(local.i=1;local.i<=local.mapList.size;local.i++){
 		local.mapCycles = int(local.mapList[ local.i ][2])
 		if(local.mapCycles > 0){
-			//@@@ DEBUG @@@
-			//println("(i) MAPROTATION: ::mapListCreateRandomList adding")
 			local.mapsAdded++
 			waitthread mapAddToRandomList local.mapList[ local.i ][1]
 		}
 	}
-
-	println("(i) MAPROTATION: ::mapListCreateRandomList ["+local.mapsAdded+"] Maps Added to RandomList")
+	//@@@ DEBUG @@@
+	println("(i) MAPROTATION: Added ["+local.mapsAdded+"] uniqe Maps to Random List")
 }end
 
 
@@ -399,9 +410,13 @@ mapIsInRandomList local.mapName:{
 		end 0
 	}
 	
+	//wait for the level to be ready
+	while($world == NULL){ waitframe }
+	
 	//check the random list
 	for(local.i=1;local.i<=level.maprotate_mapList.size;local.i++){
-		if(local.mapName == $world.flags[("mrt_rnd"+local.i)]){
+		local.mapnameInList = $world.flags[("mrt_rnd"+local.i)]
+		if(local.mapnameInList != NIL && local.mapName == local.mapnameInList){
 			end 1
 		}
 	}
@@ -459,6 +474,9 @@ mapAddToRandomList local.mapName:{
 		end
 	}
 	
+	//wait for the level to be ready
+	while($world == NULL){ waitframe }
+	
 	//add mapname to random list
 	for(local.i=1;local.i<=level.maprotate_mapList.size;local.i++){
 		local.mapNameInList = string($world.flags[("mrt_rnd"+local.i)])
@@ -485,9 +503,16 @@ mapAddToRandomList local.mapName:{
 //=========================================================================
 mapGetRandomFromList:{
 //=========================================================================
+	//wait for the level to be ready
+	while($world == NULL){ waitframe }
+
 	//pick random map, and check if it is active/has at last 1 cycle
 	local.randomListSize	= $world.flags["mrt_rnd_size"]
 	local.mapCurrent		= getCvar("mapname")
+	
+	//clean mapname of any special parameters
+	local.mapCurrent = waitthread getCleanMapname local.mapCurrent
+	
 	local.mapName			= local.mapCurrent
 	
 	//try until we have a map that is not the same
@@ -508,7 +533,14 @@ mapGetRandomFromList:{
 //=========================================================================
 mapGetNextFromList local.mapPosInList:{
 //=========================================================================
+	//wait for the level to be ready
+	while($world == NULL){ waitframe }
+
 	local.mapName			= getCvar("mapname")
+	
+	//clean mapname of any special parameters
+	local.mapName = waitthread getCleanMapname local.mapName
+	
 	local.randomRotation	= getCvar("mrt_random")
 	local.mapCycles			= 0
 	local.randomListSize	= int($world.flags["mrt_rnd_size"])
