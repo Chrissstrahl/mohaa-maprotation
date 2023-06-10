@@ -1,2 +1,50 @@
+=========================================================================
+DESCRIPTION:
+=========================================================================
+Maprotation script for mohaa bt
+This script rotates each map in the list the given ammount of cycles,
+before it continues to the next map
+
+The Maplist is a array that contains the mapname and the number of
+cycles this map should be loadad in a row, 0 disables the map in the list
+See example file:						/maprotation/stalingrad.scr
+
+=========================================================================
+INSTALLATION:
+=========================================================================
 Place files in your /maintt/ folder of the game
 This is a Beta Version, a full open source relase may follow
+
+
+=========================================================================
+CONFIGURATION:
+=========================================================================
+Via CVARS:
+mrt_list "name.scr"		- specifies which Maplist to use, can be changed on the fly
+mrt_random 0/1			- specifies if maps should be rotatet randomly can be changed on the fly
+
+
+=========================================================================
+USED CVARS and level. vars
+=========================================================================
+NEW:
+- mrt_mapLast	- remembers last map											(do not modify)
+- mrt_mapCount	- remembers how many cycles this map was active					(do not modify)
+- mrt_listPos	- remembers the current map position in teh list				(do not modify)
+- mrt_listLast	- remembers the name of the last list, to detect list changes	(do not modify)
+- mrt_list		- Specifies the list filename or path to use					Accepts strings
+- mrt_random		- Set to 1 to randomize the list							Accepts 0 or 1
+=========================================================================
+EXISTING CVARS that get overwritten:
+- sv_maplist
+- mapname
+- nextmap
+=========================================================================
+NEW LEVEL VARS used in this script:
+- level.maprotate_nextMap
+- level.maprotate_mapList
+- level.maprotate_listDefault
+- level.maprotate_started
+=========================================================================
+ENTITY VARS used in this script:
+- $world.flags["mrt_rnd*"]
