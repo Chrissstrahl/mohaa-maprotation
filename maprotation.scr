@@ -96,7 +96,7 @@ main:{
 		local.mapListName = level.maprotate_listDefault
 		
 		//iii !NFO iii
-		println("(i) MAPROTATION: Cvar mrt_list sets name of the list to use")
+		//println("(i) MAPROTATION: Cvar mrt_list sets name of the list to use")
 	}
 	
 	//a custom path is given
@@ -125,7 +125,7 @@ main:{
 	}
 	
 	//iii !NFO iii
-	println("(i) MAPROTATION: Using list: "+local.mapListName+":'"+local.mapListNameCvar+"'")
+	println("(i) MAPROTATION: Using list: "+local.mapListName+". mrt_list CVAR value is:'"+local.mapListNameCvar+"'")
 
 	//make list avialable to the scripts
 	level.maprotate_mapList	= local.mapListData
@@ -133,7 +133,7 @@ main:{
 	//verify maplist
 	waitthread mapListVerify level.maprotate_mapList
 	
-	//generate random list, if mrt_random is active
+	//generate random list
 	waitthread mapListCreateRandomList level.maprotate_mapList
 	
 	//decide what we need to do for rotation
@@ -371,12 +371,12 @@ mapListCreateRandomList local.mapList:{
 	for(local.i=1;local.i<=local.mapList.size;local.i++){
 		local.mapCycles = int(local.mapList[ local.i ][2])
 		if(local.mapCycles > 0){
-			local.mapsAdded++
-			waitthread mapAddToRandomList local.mapList[ local.i ][1]
+			local.mapsAdded += waitthread mapAddToRandomList local.mapList[ local.i ][1]
 		}
 	}
+
 	//@@@ DEBUG @@@
-	println("(i) MAPROTATION: Added ["+local.mapsAdded+"] uniqe Maps to Random List")
+	//println("(i) MAPROTATION: Added ["+local.mapsAdded+"] uniqe Maps to Random List")
 }end
 
 
@@ -466,7 +466,7 @@ mapAddToRandomList local.mapName:{
 //=========================================================================
 	if(!local.mapName){
 		error ("FATAL ERROR ::mapAddToRandomList Parameter 1 was empty!") 999
-		end
+		end 0
 	}
 	
 	//map already in list, don't add it, just exit here
@@ -474,7 +474,7 @@ mapAddToRandomList local.mapName:{
 		//@@@ DEBUG @@@
 		//println ("(i) MAPROTATION: ::mapAddToRandomList NOT added: "+local.mapName)
 		
-		end
+		end 0
 	}
 	
 	//wait for the level to be ready
@@ -494,12 +494,12 @@ mapAddToRandomList local.mapName:{
 			
 			$world.flags[("mrt_rnd"+local.i)] = local.mapName
 			$world.flags["mrt_rnd_size"] = local.i
-			end
+			end 1
 		}
 	}
 	//exceeded map entries - this should never be happening
 	error ("FATAL ERROR ::mapAddToRandomList EXCEEDED MAX ENTRIES!") 999
-}end
+}end 0
 
 
 //grabs random map from the list - avoids grabbing the same map
@@ -560,6 +560,7 @@ mapGetNextFromList local.mapPosInList:{
 	//random map is enabled
 	//make sure we have at lest 3 maps in the list or there is no point in random
 	if(local.randomRotation != "" && int(local.randomRotation) > 0 && local.randomListSize > 2){
+		println("(i) MAPROTATION: mrt_random is active selecting random map from list")
 		local.mapName = waitthread mapGetRandomFromList
 		end local.mapName
 	}
