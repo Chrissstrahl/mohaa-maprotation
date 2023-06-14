@@ -43,6 +43,7 @@
 // - level.maprotate_mapList
 // - level.maprotate_listDefault
 // - level.maprotate_started
+// - level.maprotationGametype
 
 
 //THE SCRIPT SHOULD BE STARTED HERE from 
@@ -57,6 +58,7 @@ main:{
 	//don't run twiche
 	if(level.maprotate_started != NIL){	end	}
 	level.maprotate_started = 1
+	level.maprotationGametype = int(getCvar("g_gametype"))
 	
 	//EDIT HERE YOUR DEFAULT START LIST
 	level.maprotate_listDefault = "maprotation/stalingrad.scr"
@@ -69,7 +71,7 @@ main:{
 	local.mapCurrent = waitthread getCleanMapname local.mapCurrent
 	
 	//run script only in Multiplayer
-	if(int(getCvar("g_gametype")) <= 0){
+	if(level.maprotationGametype <= 0){
 		//iii !NFO iii
 		println("(i) MAPROTATION: =X= SCRIPT TERMINATED - Meant for Multiplayer only =X=")
 		end
@@ -685,6 +687,8 @@ setNextMap local.nxtMap:{
 	setcvar "nextmap" (local.nxtMap)
 	level.maprotate_nextMap = local.nxtMap
 	
+	thread mapNextChangeGametype local.nxtMap
+	
 	//iii !NFO iii
 	println("(i) MAPROTATION: NEXT MAP set to: "+level.maprotate_nextMap)
 }end
@@ -784,13 +788,93 @@ getCleanMapname local.dirtyName:{
 }end local.cleanName
 
 
+//changes gametype for the next map in the rotation list
+//=========================================================================
+mapNextChangeGametype local.mapName:{
+//=========================================================================
+	local.gameTypeNew = 1
+	local.mapNamePrefix = local.mapName
 
+	local.fullMapName = string(local.mapName)
+	local.cleanName = ""
+	for(local.current = 0; local.current < local.fullMapName.size;local.current++){
+		local.cleanName += local.fullMapName[local.current]
+		if(local.fullMapName[local.current] == "/"){
+			break
+		}
+	}
+	
+	//if the current Gametype is restricted to certain maps, check if we need to change something
+	// Game Type
+	// 1 Free for All	obj/ lib/ dm/
+	// 2 Team Based		obj/ lib/ dm/
+	// 3 Round Based	obj/ lib/ dm/
+	// 4 Objective		obj/
+	// 5 Tug Of War		obj/
+	// 6 Liberation		lib/
+	if(level.maprotationGametype > 3){
+		//libernation maps
+		if(level.maprotationGametype != 6 && local.cleanName == "lib/"){
+			local.gameTypeNew = waitthread serverChangeGametype Liberation
+		}
+		
+		//objective/Tug Of War - Maps
+		//do we want a random gametype selection between Objective and Tug Of War ?
+		if(level.maprotationGametype == 6){
+			if(local.cleanName == "obj/"){
+				//local.gameTypeNew = waitthread serverChangeGametype TugOfWar
+				local.gameTypeNew = waitthread serverChangeGametype Objective
+			}
+			else if(local.cleanName == "dm/"){
+				//local.gameTypeNew = waitthread serverChangeGametype FreeForAll
+				//local.gameTypeNew = waitthread serverChangeGametype RoundBased
+				local.gameTypeNew = waitthread serverChangeGametype TeamMatch
+			}
+		}
+	}
+	
+	//iii !NFO iii
+	println("(i) MAPROTATION: Gametype ["+level.maprotationGametype+"] changed to ["+local.gameTypeNew+"] for next map: "+local.mapName)
+}end
 
-
-
-
-
-
+//changes gametype for the next map in the rotation list
+//=========================================================================
+serverChangeGametype local.gametype:{
+//=========================================================================
+	local.gameTypeNew = level.maprotationGametype
+	local.settingsArray = waitthread maprotation/gametype_settings.scr::(local.gametype)
+	
+	//work out the settings array, read each setting and applay it to teh cvars
+	//work out the settings array, read each setting and applay it to teh cvars
+	//work out the settings array, read each setting and applay it to teh cvars
+	//work out the settings array, read each setting and applay it to teh cvars
+	//work out the settings array, read each setting and applay it to teh cvars
+	//work out the settings array, read each setting and applay it to teh cvars
+	//work out the settings array, read each setting and applay it to teh cvars
+	
+	
+	local.cvarName = ""
+	local.cvarValue = ""
+	for(local.current = 1; local.current < local.settingsArray.size;local.current++){
+		local.cvarName = string(local.settingsArray[local.current][1])
+		local.cvarValue = string(local.settingsArray[local.current][2])
+		
+		if(local.cvarName == "" || local.cvarName == "NIL" ){
+			error ("FATAL ERROR ::serverChangeGametype CVAR Name was empty or NIL!") 999
+		}
+		
+		if(local.cvarValue =="" || local.cvarValue == "NIL" ){
+			error ("FATAL ERROR ::serverChangeGametype CVAR Value was empty or NIL!") 999
+		}
+		
+		//check the current setting if it contains/is gametype, grab the number and return it
+		if(local.cvarName == "g_gametype" || local.cvarName == "g_gameType" ){
+			local.gameTypeNew = int(local.cvarValue)
+		}
+		
+		setCvar (local.cvarName) (local.cvarName)
+	}
+}end local.gameTypeNew
 
 
 
