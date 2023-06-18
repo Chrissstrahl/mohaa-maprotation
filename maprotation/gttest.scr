@@ -1,0 +1,28 @@
+//defines the map order list
+//This specifies in which order the maps should be played
+//This also specifies how many times a map should be cycled
+
+// Game Type
+// 1 Free for All	obj/ lib/ dm/
+// 2 Team Based		obj/ lib/ dm/
+// 3 Round Based	obj/ lib/ dm/
+// 4 Objective		obj/
+// 5 Tug Of War		obj/
+// 6 Liberation		lib/
+
+//=========================================================================
+// FOLLOW THE GIVEN STRUCTURE, to add more maps
+// LEFT: [string] Mapname - RIGHT: [string:string] How often this map should be restarted after ':' what gametype this map should be played with
+//=========================================================================
+mapLists:{
+//=========================================================================
+	local.array = makearray
+"dm/mohdm1" "1:1"
+"dm/mohdm2" "1:2"
+"dm/mohdm3" "1:3"
+"dm/mohdm4" "1:4"
+"dm/mohdm5" "1:5"
+"dm/mohdm6" "1:6"
+	endarray
+}end local.array
+
