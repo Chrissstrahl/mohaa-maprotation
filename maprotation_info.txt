@@ -9,6 +9,14 @@ The Maplist is a array that contains the mapname and the number of
 cycles this map should be loadad in a row, 0 disables the map in the list
 See example file:						/maprotation/stalingrad.scr
 
+
+=========================================================================
+UPDATES:
+=========================================================================
+Added: Optional specification of the gametype to the Maplist after cycles, seperated with ':'
+Added: gametypes.scr containing settings that are executed for each gametype
+Added: gttest.scr list to test maps with different gametypes 
+
 =========================================================================
 INSTALLATION:
 =========================================================================
