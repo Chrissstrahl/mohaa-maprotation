@@ -17,17 +17,17 @@
 mapLists:{
 //=========================================================================
 	local.array = makearray
-"dm/mohdm6" "1"
+"dm/mohdm6" "1:1"
 "dm/mohdm1" "1"
-"dm/mohdm6" "1"
+"dm/mohdm6" "1:2"
 "dm/mohdm2" "1"
-"dm/mohdm6" "1"
+"dm/mohdm6" "1:1"
 "dm/mohdm3" "1"
-"dm/mohdm6" "1"
+"dm/mohdm6" "1:2"
 "dm/mohdm4" "1"
-"dm/mohdm6" "1"
+"dm/mohdm6" "1:1"
 "dm/mohdm5" "1"
-"dm/mohdm6" "1"
+"dm/mohdm6" "1:2"
 "dm/mohdm7" "1"
 	endarray
 }end local.array
