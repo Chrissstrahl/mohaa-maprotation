@@ -40,26 +40,32 @@
 //=========================================================================
 // NEW LEVEL VARS:
 // - level.maprotate_nextMap
+// - level.maprotate_nextGametype
 // - level.maprotate_mapList
 // - level.maprotate_listDefault
 // - level.maprotate_started
-// - level.maprotationGametype
+// - level.maprotate_gametype
 
 
 //THE SCRIPT SHOULD BE STARTED HERE from 
 //=========================================================================
 main:{
 //=========================================================================
-//=========================================================================
+	//don't run twiche
+	if(level.maprotate_started != NIL){	end	}
+	level.maprotate_started = 1	
+
+	//get current gametype
+	level.maprotate_gametype		= int(getCvar("g_gametype"))
+	level.maprotate_nextGametype	= level.maprotate_gametype
+	
+	//applay setting for this current/new gametype
+	thread serverChangeSettings level.maprotate_gametype
+
 	//wait until the level is ready or it goes boom
 	level waittill prespawn
 	wait 2
-	
-	//don't run twiche
-	if(level.maprotate_started != NIL){	end	}
-	level.maprotate_started = 1
-	level.maprotationGametype = int(getCvar("g_gametype"))
-	
+
 	//EDIT HERE YOUR DEFAULT START LIST
 	level.maprotate_listDefault = "maprotation/stalingrad.scr"
 	
@@ -71,7 +77,7 @@ main:{
 	local.mapCurrent = waitthread getCleanMapname local.mapCurrent
 	
 	//run script only in Multiplayer
-	if(level.maprotationGametype <= 0){
+	if(level.maprotate_gametype <= 0){
 		//iii !NFO iii
 		println("(i) MAPROTATION: =X= SCRIPT TERMINATED - Meant for Multiplayer only =X=")
 		end
@@ -225,7 +231,7 @@ mapRotation local.mapListName:{
 	local.mapCyclesAllowed = waitthread mapGetCyclesFromList local.curPos local.randomRotation
 	
 	//iii !NFO iii
-	println("(i) MAPROTATION: Map at pos "+local.curPos+" of "+local.mapRotateListSize+" in List, "+local.mapCycles+" cycles of "+local.mapCyclesAllowed+": "+local.mapCurrent)
+	println("(i) MAPROTATION: Gametype["+getCvar("g_gameType")+"] Map at pos "+local.curPos+" of "+local.mapRotateListSize+" in List, "+local.mapCycles+" cycles of "+local.mapCyclesAllowed+": "+local.mapCurrent)
 	
 	//cycles exceeded
 	if(local.mapCycles > local.mapCyclesAllowed){
@@ -235,7 +241,7 @@ mapRotation local.mapListName:{
 	
 	//cycle limit hit exactly
 	if(local.mapCycles == local.mapCyclesAllowed){
-		local.mapNext = waitthread mapGetNextFromList local.curPos	
+		local.mapNext = waitthread mapGetNextFromList local.curPos
 	}
 	
 	//set next map to load when level ends
@@ -259,16 +265,26 @@ mapRotation_firstRun local.mapCurrent local.mapListName local.randomRotation:{
 	
 	//if random map rotations is not active
 	if(local.randomRotation < 1){
+		//grab gametype this map should be run in
+		local.nextGametype	=  int(waitthread getStringData level.maprotate_mapList[1][2] 0 ":")
+	
 		//if current map is not the start map, force loading the start map
-		if( level.maprotate_mapList[1][1] != local.mapCurrent){
+		if( level.maprotate_mapList[1][1] != local.mapCurrent || local.nextGametype != level.maprotate_gametype){
 			//iii !NFO iii
-			println("(i) MAPROTATION: Current map is not start map, changing now")
+			if(level.maprotate_mapList[1][1] != local.mapCurrent){
+				println("(i) MAPROTATION: Current map["+local.mapCurrent+"] is not start map["+level.maprotate_mapList[1][1]+"], changing now")
+			}
+			if(local.nextGametype != level.maprotate_gametype){
+				setCvar "g_gametype" (local.nextGametype)
+				println("(i) MAPROTATION: Current gametype["+level.maprotate_gametype+"] does not match current map["+local.nextGametype+"], changing now")
+			}
 			
 			//update list position
 			setCvar "mrt_listPos" "0"
 			
 			//force the start map now
 			local.mapNext = level.maprotate_mapList[1][1]
+			
 			thread mapForceChange local.mapNext
 			end
 		}
@@ -306,7 +322,7 @@ mapRotation_firstRun local.mapCurrent local.mapListName local.randomRotation:{
 	local.mapCyclesAllowed = waitthread mapGetCyclesFromList local.curPos local.randomRotation
 	
 	//iii !NFO iii
-	println("(i) MAPROTATION: Map at pos "+local.curPos+" of "+local.mapRotateListSize+" in List, 1 cycles of "+local.mapCyclesAllowed+": "+local.mapCurrent)
+	println("(i) MAPROTATION: Gametype["+getCvar("g_gameType")+"] Map at pos "+local.curPos+" of "+local.mapRotateListSize+" in List, 1 cycles of "+local.mapCyclesAllowed+": "+local.mapCurrent)
 	
 	//update list position
 	setCvar "mrt_listPos" "1"
@@ -400,9 +416,11 @@ mapListCreateRandomList local.mapList:{
 	
 	//generate the random list only for maps that have more than ZERO cycles
 	for(local.i=1;local.i<=local.mapList.size;local.i++){
-		local.mapCycles = int(local.mapList[ local.i ][2])
+		local.mapName	= local.mapList[ local.i ][1]
+		local.mapCycles	=  int(waitthread getStringData local.mapList[ local.i ][2] 1 ":")
 		if(local.mapCycles > 0){
-			local.mapsAdded += waitthread mapAddToRandomList local.mapList[ local.i ][1] local.mapCycles
+			local.gametype	=  int(waitthread getStringData local.mapList[ local.i ][2] 0 ":")
+			local.mapsAdded += waitthread mapAddToRandomList local.mapName local.mapCycles local.gametype
 		}
 	}
 
@@ -431,9 +449,8 @@ mapGetCyclesFromList local.mapPosInList local.randomRotation:{
 		}
 	
 		//@@@ DEBUG @@@
-		local.mapName = level.maprotate_mapList[local.mapPosInList][1]
-		
-		local.mapCycles = int(level.maprotate_mapList[ local.mapPosInList ][2])
+		local.mapName	= level.maprotate_mapList[ local.mapPosInList ][1]
+		local.mapCycles	= int(waitthread getStringData level.maprotate_mapList[ local.mapPosInList ][2] 1 ":")
 	}
 	//grab from the random list
 	else{
@@ -447,7 +464,6 @@ mapGetCyclesFromList local.mapPosInList local.randomRotation:{
 		
 		//@@@ DEBUG @@@
 		local.mapName =  $world.flags[("mrt_rnd"+local.mapPosInList)]
-		
 		local.mapCycles = $world.flags[("mrt_rnd"+local.mapPosInList+"_cycles")]
 	}
 	
@@ -531,7 +547,7 @@ mapGetPosInList local.mapName local.startingPos:{
 
 //checks if the given map is already in the random list
 //=========================================================================
-mapAddToRandomList local.mapName local.mapCycles:{
+mapAddToRandomList local.mapName local.mapCycles local.gametype:{
 //=========================================================================
 	if(!local.mapName){
 		error ("FATAL ERROR ::mapAddToRandomList Parameter 1 was empty!") 999
@@ -553,16 +569,14 @@ mapAddToRandomList local.mapName local.mapCycles:{
 	for(local.i=1;local.i<=level.maprotate_mapList.size;local.i++){
 		local.mapNameInList = string($world.flags[("mrt_rnd"+local.i)])
 		
-		//@@@ DEBUG @@@
-		//println ("(i) MAPROTATION: ::mapAddToRandomList local.mapNameInList: "+local.mapNameInList)
-		
 		//found empty slot, add to list, also update the size info
 		if( local.mapNameInList == "NIL" || local.mapNameInList == ""){
 			//@@@ DEBUG @@@
 			//println ("(i) MAPROTATION: ::mapAddToRandomList added: "+local.mapName)
 			
-			$world.flags[("mrt_rnd"+local.i)] = local.mapName
-			$world.flags[("mrt_rnd"+local.i+"_cycles")] = local.mapCycles
+			$world.flags[("mrt_rnd"+local.i)]				= local.mapName
+			$world.flags[("mrt_rnd"+local.i+"_cycles")]		= local.mapCycles
+			$world.flags[("mrt_rnd"+local.i+"_gametype")]	= local.gametype
 			$world.flags["mrt_rnd_size"] = local.i
 			end 1
 		}
@@ -596,10 +610,15 @@ mapGetRandomFromList:{
 			local.randomNum = 1
 		}
 		local.mapName = $world.flags[("mrt_rnd"+local.randomNum)]
+		local.gametype = $world.flags[("mrt_rnd"+local.randomNum+"_gametype")]
 	}
 
 	//@@@ DEBUG @@@
-	println("(i) MAPROTATION: ::mapGetRandomFromList, selected["+local.randomNum+"] randomly: "+local.mapName)
+	println("(i) MAPROTATION: ::mapGetRandomFromList, selected["+local.randomNum+"] gt["+local.gametype+"] randomly: "+local.mapName)
+	
+	//set gametype for next map
+	level.maprotate_nextGametype = local.gametype
+	
 }end local.mapName
 
 
@@ -662,11 +681,16 @@ mapGetNextFromList local.mapPosInList:{
 		}	
 		
 		//grab cycles for this 
-		local.mapCycles = waitthread mapGetCyclesFromList local.mapPosInList local.randomRotation
+		local.mapCycles = int(waitthread getStringData level.maprotate_mapList[ local.mapPosInList ][2] 1 ":")
 		
 		//@@@ DEBUG @@@
-		//println("(i) MAPROTATION: mapGetNextFromList c["+local.mapCycles+"] for pos ["+local.mapPosInList+"]")
+		//local.gametype	= int(waitthread getStringData level.maprotate_mapList[ local.mapPosInList ][2] 0 ":")
+		//println("(i) MAPROTATION: mapGetNextFromList c["+local.mapCycles+"] gt["+local.gametype+"] at pos ["+local.mapPosInList+"]")
 	}
+	
+	//set gametype for next map
+	local.gametype	= int(waitthread getStringData level.maprotate_mapList[ local.mapPosInList ][2] 0 ":")
+	level.maprotate_nextGametype = local.gametype
 
 	//grab mapname from list
 	local.mapName = level.maprotate_mapList[ local.mapPosInList ][1]
@@ -685,12 +709,18 @@ setNextMap local.nxtMap:{
 	}
 	setcvar "sv_maplist" (local.nxtMap)
 	setcvar "nextmap" (local.nxtMap)
+
 	level.maprotate_nextMap = local.nxtMap
 	
-	thread mapNextChangeGametype local.nxtMap
+	if(level.maprotate_nextGametype && level.maprotate_nextGametype > 0 && level.maprotate_nextGametype < 7){
+		setCvar "g_gametype" (level.maprotate_nextGametype)
+	}
+	
+	//have some watchdog check when the level ends and change certain values
+	local.gametypeName = waitthread getGameTypeNameByNumber level.maprotate_nextGametype
 	
 	//iii !NFO iii
-	println("(i) MAPROTATION: NEXT MAP set to: "+level.maprotate_nextMap)
+	println("(i) MAPROTATION: NEXT "+local.gametypeName+"["+level.maprotate_nextGametype+"] on MAP: "+level.maprotate_nextMap)
 }end
 
 
@@ -726,19 +756,6 @@ mapEndLevel:{
 	local.levelEndTrigger = spawn "trigger_changelevel" "map" (level.maprotate_nextMap)
 	waitframe
 	trigger local.levelEndTrigger
-}end
-
-
-//used to help with printouts of debug messages
-//=========================================================================
-printDebugMessage local.dMsg:{
-//=========================================================================
-	if(!local.dMsg){
-		error ("FATAL ERROR ::waitthread printDebugMessage EMPTY Message given!") 999
-	}
-	//iprintln_noloc local.dMsg
-	//if($player[1]){ $player[1] iprint local.dMsg 1 }
-	println ("@@@ "+local.dMsg)
 }end
 
 
@@ -788,74 +805,90 @@ getCleanMapname local.dirtyName:{
 }end local.cleanName
 
 
-//changes gametype for the next map in the rotation list
+//grabs the data from the string that comes after the seperator
 //=========================================================================
-mapNextChangeGametype local.mapName:{
+getStringData local.stringData local.beforeSeperator local.seperator:{
 //=========================================================================
-	local.gameTypeNew = 1
-	local.mapNamePrefix = local.mapName
+	if(!local.stringData){
+		error ("FATAL ERROR ::getStringData Parameter1 was EMPTY !") 999
+	}
+	
+	if(!local.seperator){ local.seperator = ":" }
+	if(!local.beforeSeperator){ local.beforeSeperator = 0 }
+	else{ local.beforeSeperator = 1 }
+	
+	local.fullString = string(local.stringData)
+	local.extracted = ""
+	local.extractStarted = 0
+	
+	for(local.current = 0; local.current < local.fullString.size;local.current++){
+		//grab data before seperator
+		if(local.beforeSeperator){
+			if(local.fullString[local.current] == local.seperator){
+				break
+			}
+			local.extracted += local.fullString[local.current]
+		}
+		//grab data after seperator
+		else{
+			if(local.extractStarted){
+				local.extracted += local.fullString[local.current]
+			}			
+			if(local.fullString[local.current] == local.seperator){
+				local.extractStarted = 1
+			}
+		}
+	}
+}end local.extracted
 
-	local.fullMapName = string(local.mapName)
-	local.cleanName = ""
-	for(local.current = 0; local.current < local.fullMapName.size;local.current++){
-		local.cleanName += local.fullMapName[local.current]
-		if(local.fullMapName[local.current] == "/"){
+
+//Returns Gamtype Name by Number
+//=========================================================================
+getGameTypeNameByNumber local.number:{
+//=========================================================================
+	switch (local.number){
+		case 2:
+			local.number = "TeamMatch"
 			break
-		}
+		case 3:
+			local.number = "RoundBased"
+			break
+		case 4:
+			local.number = "Objective"
+			break
+		case 5:
+			local.number = "TugOfWar"
+			break
+		case 6:
+			local.number = "Liberation"
+			break
+		default:
+			local.number = "FreeForAll"
+			break
 	}
-	
-	//if the current Gametype is restricted to certain maps, check if we need to change something
-	// Game Type
-	// 1 Free for All	obj/ lib/ dm/
-	// 2 Team Based		obj/ lib/ dm/
-	// 3 Round Based	obj/ lib/ dm/
-	// 4 Objective		obj/
-	// 5 Tug Of War		obj/
-	// 6 Liberation		lib/
-	if(level.maprotationGametype > 3){
-		//libernation maps
-		if(level.maprotationGametype != 6 && local.cleanName == "lib/"){
-			local.gameTypeNew = waitthread serverChangeGametype Liberation
-		}
-		
-		//objective/Tug Of War - Maps
-		//do we want a random gametype selection between Objective and Tug Of War ?
-		if(level.maprotationGametype == 6){
-			if(local.cleanName == "obj/"){
-				//local.gameTypeNew = waitthread serverChangeGametype TugOfWar
-				local.gameTypeNew = waitthread serverChangeGametype Objective
-			}
-			else if(local.cleanName == "dm/"){
-				//local.gameTypeNew = waitthread serverChangeGametype FreeForAll
-				//local.gameTypeNew = waitthread serverChangeGametype RoundBased
-				local.gameTypeNew = waitthread serverChangeGametype TeamMatch
-			}
-		}
-	}
-	
-	//iii !NFO iii
-	println("(i) MAPROTATION: Gametype ["+level.maprotationGametype+"] changed to ["+local.gameTypeNew+"] for next map: "+local.mapName)
-}end
+}end local.number
 
-//changes gametype for the next map in the rotation list
+
+//changes gametype for the next map in the rotation list (paramter 1 gametypename)
 //=========================================================================
-serverChangeGametype local.gametype:{
+serverChangeSettings local.gametype:{
 //=========================================================================
-	local.gameTypeNew = level.maprotationGametype
-	local.settingsArray = waitthread maprotation/gametype_settings.scr::(local.gametype)
+	//contains the gametype we want to switch to - grab current gametype which will be maintained if next map does not provide a gametype
+	local.gameTypeNew = level.maprotate_gametype
 	
-	//work out the settings array, read each setting and applay it to teh cvars
-	//work out the settings array, read each setting and applay it to teh cvars
-	//work out the settings array, read each setting and applay it to teh cvars
-	//work out the settings array, read each setting and applay it to teh cvars
-	//work out the settings array, read each setting and applay it to teh cvars
-	//work out the settings array, read each setting and applay it to teh cvars
-	//work out the settings array, read each setting and applay it to teh cvars
+	//do not allow empty gametypes
+	if(!local.gametype){
+		error ("FATAL ERROR ::serverChangeGametype given gametypename in parameter1 was EMPTY!") 999
+	}
 	
+	//grab gametype settings and put them into a array based on given gametypename
+	local.gametypName = thread getGameTypeNameByNumber local.gametype
+	local.settingsArray = waitthread maprotation/gametypes.scr::(local.gametypName)
 	
+	//SET all settings to server now
 	local.cvarName = ""
 	local.cvarValue = ""
-	for(local.current = 1; local.current < local.settingsArray.size;local.current++){
+	for(local.current = 1; local.current <= local.settingsArray.size;local.current++){
 		local.cvarName = string(local.settingsArray[local.current][1])
 		local.cvarValue = string(local.settingsArray[local.current][2])
 		
@@ -867,14 +900,11 @@ serverChangeGametype local.gametype:{
 			error ("FATAL ERROR ::serverChangeGametype CVAR Value was empty or NIL!") 999
 		}
 		
-		//check the current setting if it contains/is gametype, grab the number and return it
-		if(local.cvarName == "g_gametype" || local.cvarName == "g_gameType" ){
-			local.gameTypeNew = int(local.cvarValue)
-		}
+		//@@@ DEBUG @@@
+		//println("serverChangeGametype: "+local.cvarName+"->"+local.cvarValue)
 		
-		setCvar (local.cvarName) (local.cvarName)
+		setCvar (local.cvarName) (local.cvarValue)
 	}
-}end local.gameTypeNew
-
-
-
+	
+	println("(i) MAPROTATION: "+local.gametypName+"["+local.gametype+"] Settings(gametypes.scr) applied for: "+getCvar("mapname"))
+}end
