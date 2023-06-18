@@ -1,0 +1,178 @@
+//defines the server cvar settings for each gametype
+
+// Game Type
+// 1 Free for All	obj/ lib/ dm/
+// 2 Team Based		obj/ lib/ dm/
+// 3 Round Based	obj/ lib/ dm/
+// 4 Objective		obj/
+// 5 Tug Of War		obj/
+// 6 Liberation		lib/
+
+//=========================================================================
+// FOLLOW THE GIVEN STRUCTURE, to add more settings
+// THIS is used in the script like: setCvar value1 value2
+// LEFT: [string] cvarname - RIGHT: [string] value
+//=========================================================================
+
+//=========================================================================
+FreeForAll:{
+//=========================================================================
+	local.array = makearray
+"g_healthdrop"				"1"
+"timelimit"					"1" //20
+"fraglimit"					"0"
+"g_teamdamage"				"0"
+"sv_dmspeedmult"			"1.1"
+"g_healrate"				"10"
+"maprotationtime"			"0"
+"sv_team_spawn_interval"	"15"
+"roundlimit"				"0"
+"g_realismmode"				"1"
+//"g_forceteamspectate"		"1"
+//"dmflags"					"0"
+//"sv_invulnerabletime"		"0"
+//"g_teamkillwarn"			"3"
+//"g_teamkillkick			"5"
+//"g_teamswitchdelay"		"15"
+//"g_allowjointime"			"30"
+//"sv_keywords"				""
+//"sv_sprinton"				"0"
+//"sv_runspeed"				"250"
+	endarray
+}end local.array
+
+
+//=========================================================================
+TeamMatch:{
+//=========================================================================
+	local.array = makearray
+"g_healthdrop"				"1"
+"timelimit"					"1" //10
+"fraglimit"					"100"
+"g_teamdamage"				"1"
+"sv_dmspeedmult"			"1.1"
+"g_healrate"				"10"
+"maprotationtime"			"30"
+"sv_team_spawn_interval"	"15"
+"roundlimit"				"0"
+"g_realismmode"				"0"
+//"g_forceteamspectate"		"1"
+//"dmflags"					"0"
+//"sv_invulnerabletime"		"0"
+//"g_teamkillwarn"			"3"
+//"g_teamkillkick			"5"
+//"g_teamswitchdelay"		"15"
+//"g_allowjointime"			"30"
+//"sv_keywords"				""
+//"sv_sprinton"				"0"
+//"sv_runspeed"				"250"
+	endarray
+}end local.array
+
+//=========================================================================
+RoundBased:{
+//=========================================================================
+	local.array = makearray
+"g_healthdrop"				"1"
+"timelimit"					"1" //10
+"fraglimit"					"100"
+"g_teamdamage"				"0"
+"sv_dmspeedmult"			"1.1"
+"g_healrate"				"10"
+"maprotationtime"			"30"
+"sv_team_spawn_interval"	"15"
+"roundlimit"				"0"
+"g_realismmode"				"0"
+//"g_forceteamspectate"		"1"
+//"dmflags"					"0"
+//"sv_invulnerabletime"		"0"
+//"g_teamkillwarn"			"3"
+//"g_teamkillkick			"5"
+//"g_teamswitchdelay"		"15"
+//"g_allowjointime"			"30"
+//"sv_keywords"				""
+//"sv_sprinton"				"0"
+//"sv_runspeed"				"250"
+	endarray
+}end local.array
+
+//=========================================================================
+Objective:{
+//=========================================================================
+	local.array = makearray
+"g_healthdrop"				"1"
+"timelimit"					"1" //10
+"fraglimit"					"100"
+"g_teamdamage"				"0"
+"sv_dmspeedmult"			"1.1"
+"g_healrate"				"10"
+"maprotationtime"			"30"
+"sv_team_spawn_interval"	"15"
+"roundlimit"				"0"
+"g_realismmode"				"0"
+//"g_forceteamspectate"		"1"
+//"dmflags"					"0"
+//"sv_invulnerabletime"		"0"
+//"g_teamkillwarn"			"3"
+//"g_teamkillkick			"5"
+//"g_teamswitchdelay"		"15"
+//"g_allowjointime"			"30"
+//"sv_keywords"				""
+//"sv_sprinton"				"0"
+//"sv_runspeed"				"250"
+	endarray
+}end local.array
+
+//=========================================================================
+TugOfWar:{
+//=========================================================================
+	local.array = makearray
+"g_healthdrop"				"1"
+"timelimit"					"1" //10
+"fraglimit"					"100"
+"g_teamdamage"				"1"
+"sv_dmspeedmult"			"1.1"
+"g_healrate"				"10"
+"maprotationtime"			"30"
+"sv_team_spawn_interval"	"15"
+"roundlimit"				"0"
+"g_realismmode"				"1"
+//"g_forceteamspectate"		"1"
+//"dmflags"					"0"
+//"sv_invulnerabletime"		"0"
+//"g_teamkillwarn"			"3"
+//"g_teamkillkick			"5"
+//"g_teamswitchdelay"		"15"
+//"g_allowjointime"			"30"
+//"sv_keywords"				""
+//"sv_sprinton"				"0"
+//"sv_runspeed"				"250"
+	endarray
+}end local.array
+
+//=========================================================================
+Liberation:{
+//=========================================================================
+	local.array = makearray
+"g_healthdrop"				"1"
+"timelimit"					"1" //10
+"fraglimit"					"100"
+"g_teamdamage"				"1"
+"sv_dmspeedmult"			"1.1"
+"g_healrate"				"10"
+"maprotationtime"			"30"
+"sv_team_spawn_interval"	"15"
+"roundlimit"				"0"
+"g_realismmode"				"1"
+//"g_forceteamspectate"		"1"
+//"dmflags"					"0"
+//"sv_invulnerabletime"		"0"
+//"g_teamkillwarn"			"3"
+//"g_teamkillkick			"5"
+//"g_teamswitchdelay"		"15"
+//"g_allowjointime"			"30"
+//"sv_keywords"				""
+//"sv_sprinton"				"0"
+//"sv_runspeed"				"250"
+	endarray
+}end local.array
