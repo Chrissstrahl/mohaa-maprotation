@@ -266,7 +266,7 @@ mapRotation_firstRun local.mapCurrent local.mapListName local.randomRotation:{
 	//if random map rotations is not active
 	if(local.randomRotation < 1){
 		//grab gametype this map should be run in
-		local.nextGametype	=  int(waitthread getStringData level.maprotate_mapList[1][2] 0 ":")
+		local.nextGametype	=  int(waitthread extractGametype level.maprotate_mapList[1][2])
 	
 		//if current map is not the start map, force loading the start map
 		if( level.maprotate_mapList[1][1] != local.mapCurrent || local.nextGametype != level.maprotate_gametype){
@@ -417,9 +417,9 @@ mapListCreateRandomList local.mapList:{
 	//generate the random list only for maps that have more than ZERO cycles
 	for(local.i=1;local.i<=local.mapList.size;local.i++){
 		local.mapName	= local.mapList[ local.i ][1]
-		local.mapCycles	=  int(waitthread getStringData local.mapList[ local.i ][2] 1 ":")
+		local.mapCycles	=  int(waitthread extractCycles local.mapList[ local.i ][2])
 		if(local.mapCycles > 0){
-			local.gametype	=  int(waitthread getStringData local.mapList[ local.i ][2] 0 ":")
+			local.gametype	=  int(waitthread extractGametype local.mapList[ local.i ][2])
 			local.mapsAdded += waitthread mapAddToRandomList local.mapName local.mapCycles local.gametype
 		}
 	}
@@ -450,7 +450,7 @@ mapGetCyclesFromList local.mapPosInList local.randomRotation:{
 	
 		//@@@ DEBUG @@@
 		local.mapName	= level.maprotate_mapList[ local.mapPosInList ][1]
-		local.mapCycles	= int(waitthread getStringData level.maprotate_mapList[ local.mapPosInList ][2] 1 ":")
+		local.mapCycles	= int(waitthread extractCycles level.maprotate_mapList[ local.mapPosInList ][2])
 	}
 	//grab from the random list
 	else{
@@ -681,15 +681,15 @@ mapGetNextFromList local.mapPosInList:{
 		}	
 		
 		//grab cycles for this 
-		local.mapCycles = int(waitthread getStringData level.maprotate_mapList[ local.mapPosInList ][2] 1 ":")
+		local.mapCycles = int(waitthread extractCycles level.maprotate_mapList[ local.mapPosInList ][2])
 		
 		//@@@ DEBUG @@@
-		//local.gametype	= int(waitthread getStringData level.maprotate_mapList[ local.mapPosInList ][2] 0 ":")
+		//local.gametype	= int(waitthread extractGametype level.maprotate_mapList[ local.mapPosInList ][2])
 		//println("(i) MAPROTATION: mapGetNextFromList c["+local.mapCycles+"] gt["+local.gametype+"] at pos ["+local.mapPosInList+"]")
 	}
 	
 	//set gametype for next map
-	local.gametype	= int(waitthread getStringData level.maprotate_mapList[ local.mapPosInList ][2] 0 ":")
+	local.gametype	= int(waitthread extractGametype level.maprotate_mapList[ local.mapPosInList ][2])
 	level.maprotate_nextGametype = local.gametype
 
 	//grab mapname from list
@@ -840,6 +840,31 @@ getStringData local.stringData local.beforeSeperator local.seperator:{
 		}
 	}
 }end local.extracted
+
+
+//changes gametype for the next map in the rotation list (paramter 1 gametypename)
+//=========================================================================
+extractCycles local.stringData:{
+//=========================================================================
+	local.cycles = 0
+	local.extracted = waitthread getStringData local.stringData 1 ":"
+	if(local.extracted != "" && int(local.extracted) > 0){
+		local.cycles = int(local.extracted)
+	}
+}end local.cycles
+
+
+//changes gametype for the next map in the rotation list (paramter 1 gametypename)
+//=========================================================================
+extractGametype local.stringData:{
+//=========================================================================
+	local.gametype = level.maprotate_gametype
+	local.extracted = waitthread getStringData local.stringData 0 ":"
+	if(local.extracted != "" && int(local.extracted) > 0){
+		local.gametype = int(local.extracted)
+		if(local.gametype > 6){ local.gametype = 6 }
+	}
+}end local.gametype
 
 
 //Returns Gamtype Name by Number
